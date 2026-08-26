@@ -1,0 +1,15 @@
+{
+  "float32_test_accuracy": 1.0,
+  "int8_tflite_test_accuracy": 0.85,
+  "float32_test_loss": 0.0003212174342479557,
+  "tflite_model_bytes": 15832,
+  "num_train": 560,
+  "num_val": 120,
+  "num_test": 120,
+  "classes": [
+    "idle",
+    "wave",
+    "circle",
+    "punch"
+  ]
+}

@@ -1,0 +1,22 @@
+# Dependencies for hosting/webapp/app.py only.
+#
+# Deliberately excludes tensorflow and tflite-runtime. The "Live Prediction"
+# tab tries `import tensorflow` and degrades to a plain explanation if it
+# isn't installed -- it does not crash the app. Reasoning (also in
+# hosting/HOSTING_GUIDE.md):
+#   - Full tensorflow is a several-hundred-MB install. Asking a free-tier host
+#     (Streamlit Community Cloud, Hugging Face Spaces) to install it just to
+#     run a single 15.8KB int8 model is a bad trade -- slow cold starts and a
+#     real risk of hitting the free tier's ~1GB memory ceiling.
+#   - tflite-runtime, the lighter alternative, is not a safe substitute:
+#     Google deprecated that PyPI package in 2023 and it is no longer
+#     reliably installable across platforms/Python versions.
+# Visualization and dataset stats (the two required features) need none of
+# this -- they only ever touch pandas/matplotlib on a plain CSV.
+#
+# To use the Live Prediction tab, install tensorflow yourself (you already
+# need it for build_from_scratch/model/train.py) and run this app locally.
+streamlit>=1.57
+pandas>=2.3
+matplotlib>=3.9
+numpy>=2.0

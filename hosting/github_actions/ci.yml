@@ -1,0 +1,108 @@
+# TinyML Gesture Classifier -- CI workflow
+#
+# WHAT THIS DOES
+#   On every push/PR, on a clean checkout:
+#     1. installs build_from_scratch/requirements.txt (tensorflow, numpy, pytest)
+#     2. runs `pytest -q` in build_from_scratch/ (7 tests: data-generator
+#        determinism, CSV schema/shape, gravity-magnitude sanity, TFLite
+#        flatbuffer validity, model/firmware header-copy consistency, and the
+#        int8-accuracy-can't-exceed-float32 ordering check)
+#     3. installs arduino-cli, the esp32:esp32 board core, and the two
+#        libraries the firmware needs (ArduTFLite + Adafruit MPU6050)
+#     4. runs `arduino-cli compile --fqbn esp32:esp32:esp32` on BOTH
+#        firmware/tinyml_gesture and firmware/data_collector
+#
+#   Any of those four things failing turns the whole job red.
+#
+# WHAT THIS DOES NOT AND CANNOT DO
+#   This job has no ESP32 and no MPU6050 attached to it -- GitHub's hosted
+#   runners are plain Linux VMs with no USB-attached hardware at all. It can
+#   only prove the firmware COMPILES cleanly against the real library APIs
+#   (ArduTFLite, Adafruit_MPU6050) for the real esp32:esp32:esp32 board
+#   target. It cannot flash a board, cannot confirm the MPU6050 wiring is
+#   correct, and cannot confirm the on-device inference loop actually
+#   recognizes a real gesture. A green run here means "this will build," not
+#   "this works on a bench." See hosting/HOSTING_GUIDE.md and
+#   build_from_scratch/wiring/WIRING_GUIDE.md for the flashing/bring-up steps
+#   only a real board can complete.
+#
+# HOW TO USE
+#   1. Put the project on GitHub.
+#   2. Copy this file to .github/workflows/ci.yml in your repo ROOT (GitHub
+#      only looks in .github/workflows there).
+#   3. This assumes the repo root is the 12-tinyml-gesture-classifier/ project
+#      folder. If it's instead a subfolder of a bigger multi-project repo, add
+#      `defaults: {run: {working-directory: 12-tinyml-gesture-classifier}}` at
+#      the job level and adjust paths below accordingly.
+#   4. Commit and push. Open the "Actions" tab to watch it run.
+
+name: tinyml-gesture-ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies (tensorflow, numpy, pytest)
+        run: pip install -r build_from_scratch/requirements.txt
+
+      - name: Run the pytest suite (7 tests, no hardware needed)
+        working-directory: build_from_scratch
+        run: pytest -q
+
+      # --- everything below this line is the firmware compile-check ---
+      # This proves the .ino files build clean against the real ArduTFLite /
+      # Adafruit MPU6050 APIs for the esp32:esp32:esp32 target. It does NOT
+      # touch, flash, or simulate a real board -- see the header comment above.
+
+      - name: Install arduino-cli
+        uses: arduino/setup-arduino-cli@v2
+
+      # Equivalent manual install (if you're not using GitHub Actions and want
+      # to reproduce this step locally on Linux/macOS):
+      #   curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+
+      - name: Add the esp32:esp32 board index and install the core
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli config add board_manager.additional_urls \
+            https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+
+      - name: Install the firmware's libraries (ArduTFLite + Adafruit MPU6050)
+        run: |
+          arduino-cli lib install ArduTFLite
+          arduino-cli lib install "Adafruit MPU6050"
+          # arduino-cli resolves each library's own declared dependencies
+          # automatically (Chirale_TensorFlowLite for ArduTFLite; Adafruit
+          # BusIO + Adafruit Unified Sensor for Adafruit MPU6050) -- no need
+          # to list those separately.
+          arduino-cli lib list
+
+      - name: Compile firmware/tinyml_gesture (on-device inference sketch)
+        run: |
+          arduino-cli compile --fqbn esp32:esp32:esp32 \
+            build_from_scratch/firmware/tinyml_gesture
+
+      - name: Compile firmware/data_collector (serial IMU logger sketch)
+        run: |
+          arduino-cli compile --fqbn esp32:esp32:esp32 \
+            build_from_scratch/firmware/data_collector
+
+      # No flash step, no hardware-in-the-loop step, on purpose -- see the
+      # header comment. If you want to actually run this on a board, do it
+      # from your own machine with a real ESP32 + MPU6050 plugged in; see
+      # hosting/HOSTING_GUIDE.md's "Flashing to real hardware" section.
