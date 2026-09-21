@@ -9,7 +9,7 @@ and gyroscope traces for any single recording, and check dataset-level shape
 (recordings per class, samples per recording).
 
 CSV schema expected (exactly what data_collector.ino prints over serial, and
-what build_from_scratch/data/generate_data.py writes):
+what data/generate_data.py writes):
 
     recording_id,label,t_ms,ax,ay,az,gx,gy,gz
 
@@ -19,7 +19,7 @@ firmware converts to on-device (see tinyml_gesture.ino's unit-conversion
 comment).
 
 Live Prediction tab: loads the real
-build_from_scratch/model/gesture_model_int8.tflite (the actual 15.8KB int8
+model/gesture_model_int8.tflite (the actual 15.8KB int8
 quantized model, not a stand-in) through tf.lite.Interpreter and runs it
 against a selected recording, IF tensorflow is importable in this environment.
 It deliberately is NOT a hard dependency of this app (see requirements.txt and
@@ -32,7 +32,7 @@ Run locally:
     streamlit run hosting/webapp/app.py
 
 This file lives in hosting/webapp/ but reads real artifacts from
-build_from_scratch/ (the synthetic dataset and the trained model), two
+the repo root (the synthetic dataset in data/ and the trained model in model/), two
 directories up and back down -- same idea as project 25's dashboard, just
 without importing a Python package (there's no equivalent shared library here,
 the "product" is a CSV schema and a .tflite file).
@@ -45,15 +45,14 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-# hosting/webapp/app.py -> hosting/ -> project root -> build_from_scratch/
+# hosting/webapp/app.py -> hosting/ -> repo root (data/, model/)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-BUILD_FROM_SCRATCH = PROJECT_ROOT / "build_from_scratch"
-SAMPLE_CSV = BUILD_FROM_SCRATCH / "data" / "imu_gesture_log.csv"
-TFLITE_MODEL = BUILD_FROM_SCRATCH / "model" / "gesture_model_int8.tflite"
+SAMPLE_CSV = PROJECT_ROOT / "data" / "imu_gesture_log.csv"
+TFLITE_MODEL = PROJECT_ROOT / "model" / "gesture_model_int8.tflite"
 
 REQUIRED_COLUMNS = ["recording_id", "label", "t_ms", "ax", "ay", "az", "gx", "gy", "gz"]
 AXES = ["ax", "ay", "az", "gx", "gy", "gz"]
-# training order from build_from_scratch/data/generate_data.py -- the trained
+# training order from data/generate_data.py -- the trained
 # model's output softmax index order matches this list exactly.
 CLASSES = ["idle", "wave", "circle", "punch"]
 SAMPLES_PER_WINDOW = 50  # 1s @ 50Hz -- what train.py and the firmware require
@@ -89,7 +88,7 @@ source = st.sidebar.radio(
     ["Use the built-in synthetic dataset", "Upload a CSV", "Paste CSV text"],
     index=0,
     help=(
-        "The built-in dataset is build_from_scratch/data/imu_gesture_log.csv -- "
+        "The built-in dataset is data/imu_gesture_log.csv -- "
         "the real 800-recording, seed=42 synthetic set generate_data.py produces. "
         "Upload or paste your own to inspect a real data_collector.ino recording."
     ),
@@ -106,7 +105,7 @@ if source == "Use the built-in synthetic dataset":
     else:
         st.sidebar.error(
             f"Can't find {SAMPLE_CSV}. Run "
-            "`python build_from_scratch/data/generate_data.py` first, or switch "
+            "`python data/generate_data.py` first, or switch "
             "to Upload/Paste."
         )
 elif source == "Upload a CSV":
@@ -220,7 +219,7 @@ with tab_summary:
 
     st.subheader("Samples per recording")
     st.caption(
-        f"The training pipeline (build_from_scratch/model/train.py) requires "
+        f"The training pipeline (model/train.py) requires "
         f"exactly {SAMPLES_PER_WINDOW} samples per recording -- 1 second of IMU "
         "data at 50Hz. The synthetic dataset always hits this exactly; real "
         "recordings from data_collector.ino can be a sample or two off because "
@@ -244,8 +243,8 @@ with tab_summary:
 with tab_predict:
     st.subheader("Run the real quantized model against a recording")
     st.caption(
-        "Loads build_from_scratch/model/gesture_model_int8.tflite -- the actual "
-        "15,832-byte int8 quantized model build_from_scratch/model/train.py "
+        "Loads model/gesture_model_int8.tflite -- the actual "
+        "15,832-byte int8 quantized model that model/train.py "
         "produced, not a stand-in -- through tf.lite.Interpreter, and runs it "
         "against the selected recording's 300 features (50 samples x 6 axes), "
         "flattened in the same order train.py uses."
@@ -270,13 +269,13 @@ with tab_predict:
             "deprecated that PyPI package in 2023 and it's no longer reliably "
             "installable across platforms. See hosting/HOSTING_GUIDE.md for the "
             "full reasoning. To use this tab: `pip install tensorflow` locally "
-            "(you already need it for build_from_scratch/model/train.py) and run "
+            "(you already need it for model/train.py) and run "
             "`streamlit run hosting/webapp/app.py` from your own machine."
         )
     elif not TFLITE_MODEL.exists():
         st.error(
             f"Can't find {TFLITE_MODEL}. Run "
-            "`python build_from_scratch/model/train.py` first."
+            "`python model/train.py` first."
         )
     else:
         eligible = samples_per_recording[samples_per_recording == SAMPLES_PER_WINDOW].index
@@ -319,7 +318,7 @@ with tab_predict:
                 st.caption(
                     f"CSV's own label column says this recording is '{true_label}' -- "
                     "the int8 model's real measured test accuracy is 0.85 "
-                    "(see build_from_scratch/model/metrics.json), so an occasional "
+                    "(see model/metrics.json), so an occasional "
                     "mismatch is expected, not evidence of a bug."
                 )
 

@@ -2,8 +2,8 @@
 #
 # WHAT THIS DOES
 #   On every push/PR, on a clean checkout:
-#     1. installs build_from_scratch/requirements.txt (tensorflow, numpy, pytest)
-#     2. runs `pytest -q` in build_from_scratch/ (7 tests: data-generator
+#     1. installs requirements.txt (tensorflow, numpy, pytest)
+#     2. runs `pytest -q` at the repo root (7 tests: data-generator
 #        determinism, CSV schema/shape, gravity-magnitude sanity, TFLite
 #        flatbuffer validity, model/firmware header-copy consistency, and the
 #        int8-accuracy-can't-exceed-float32 ordering check)
@@ -23,7 +23,7 @@
 #   correct, and cannot confirm the on-device inference loop actually
 #   recognizes a real gesture. A green run here means "this will build," not
 #   "this works on a bench." See hosting/HOSTING_GUIDE.md and
-#   build_from_scratch/wiring/WIRING_GUIDE.md for the flashing/bring-up steps
+#   wiring/WIRING_GUIDE.md for the flashing/bring-up steps
 #   only a real board can complete.
 #
 # HOW TO USE
@@ -56,10 +56,9 @@ jobs:
           python-version: "3.11"
 
       - name: Install Python dependencies (tensorflow, numpy, pytest)
-        run: pip install -r build_from_scratch/requirements.txt
+        run: pip install -r requirements.txt
 
       - name: Run the pytest suite (7 tests, no hardware needed)
-        working-directory: build_from_scratch
         run: pytest -q
 
       # --- everything below this line is the firmware compile-check ---
@@ -95,12 +94,12 @@ jobs:
       - name: Compile firmware/tinyml_gesture (on-device inference sketch)
         run: |
           arduino-cli compile --fqbn esp32:esp32:esp32 \
-            build_from_scratch/firmware/tinyml_gesture
+            firmware/tinyml_gesture
 
       - name: Compile firmware/data_collector (serial IMU logger sketch)
         run: |
           arduino-cli compile --fqbn esp32:esp32:esp32 \
-            build_from_scratch/firmware/data_collector
+            firmware/data_collector
 
       # No flash step, no hardware-in-the-loop step, on purpose -- see the
       # header comment. If you want to actually run this on a board, do it

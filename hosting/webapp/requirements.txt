@@ -15,7 +15,7 @@
 # this -- they only ever touch pandas/matplotlib on a plain CSV.
 #
 # To use the Live Prediction tab, install tensorflow yourself (you already
-# need it for build_from_scratch/model/train.py) and run this app locally.
+# need it for model/train.py) and run this app locally.
 streamlit>=1.57
 pandas>=2.3
 matplotlib>=3.9

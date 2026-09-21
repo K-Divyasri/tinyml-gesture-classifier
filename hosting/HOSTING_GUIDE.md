@@ -16,7 +16,7 @@ honest things:
    of this. This section is a guide to doing it on your own bench, and it
    says plainly that nobody has done this step for you yet.
 
-Read `build_from_scratch/` first if you haven't -- `data/generate_data.py` ->
+Read the repo root first if you haven't -- `data/generate_data.py` ->
 `model/train.py` -> the two sketches in `firmware/` -- so the rest of this
 guide has something to point at.
 
@@ -36,12 +36,12 @@ guide has something to point at.
   matters because real hand-timed recordings from `data_collector.ino` won't
   always land on exactly 50 samples the way the synthetic generator does).
 - **Live Prediction** -- loads the real
-  `build_from_scratch/model/gesture_model_int8.tflite` through
+  `model/gesture_model_int8.tflite` through
   `tf.lite.Interpreter` and classifies a selected recording, **only if
   tensorflow is importable in the environment the app is running in.**
 
 It accepts a CSV from three places: the built-in synthetic dataset
-(`build_from_scratch/data/imu_gesture_log.csv`, loaded by default so the app
+(`data/imu_gesture_log.csv`, loaded by default so the app
 is useful with zero clicks), a file upload, or pasted text. All three go
 through the same schema check for the 9 required columns:
 `recording_id,label,t_ms,ax,ay,az,gx,gy,gz` -- exactly what
@@ -75,7 +75,7 @@ actually needs a hosted dashboard for -- depend on nothing but
 pandas/matplotlib and work regardless.
 
 If you want the Live Prediction tab: `pip install tensorflow` (you already
-need it for `build_from_scratch/model/train.py`) and run the app locally.
+need it for `model/train.py`) and run the app locally.
 It will pick it up automatically -- no code change needed.
 
 ### Run it locally
@@ -103,8 +103,8 @@ built-in synthetic dataset loads immediately; try uploading your own
    sits next to the entry file.
 5. Click **Deploy**.
 
-Because `build_from_scratch/data/imu_gesture_log.csv` and
-`build_from_scratch/model/gesture_model_int8.tflite` are committed to the
+Because `data/imu_gesture_log.csv` and
+`model/gesture_model_int8.tflite` are committed to the
 repo, the dashboard works instantly on a cold container -- the built-in
 dataset loads with nothing to generate first, and (if you separately choose
 to install tensorflow on that deployment, which the default
@@ -142,8 +142,8 @@ it to `.github/workflows/ci.yml` at your repo root (GitHub only looks in
 
 ### What it does, step by step
 
-1. Installs `build_from_scratch/requirements.txt` (tensorflow, numpy, pytest).
-2. Runs `pytest -q` in `build_from_scratch/` -- 7 tests covering the data
+1. Installs `requirements.txt` (tensorflow, numpy, pytest).
+2. Runs `pytest -q` at the repo root -- 7 tests covering the data
    generator's determinism, the CSV schema/shape, a gravity-magnitude sanity
    check, TFLite flatbuffer validity, model/firmware header-copy consistency,
    and the "int8 accuracy can't exceed float32 accuracy" ordering check.
@@ -159,9 +159,9 @@ it to `.github/workflows/ci.yml` at your repo root (GitHub only looks in
    `Chirale_TensorFlowLite` for ArduTFLite, `Adafruit BusIO` +
    `Adafruit Unified Sensor` for the MPU6050 library -- automatically).
 6. Runs `arduino-cli compile --fqbn esp32:esp32:esp32` on
-   `build_from_scratch/firmware/tinyml_gesture`.
+   `firmware/tinyml_gesture`.
 7. Runs the same compile command on
-   `build_from_scratch/firmware/data_collector`.
+   `firmware/data_collector`.
 
 Any of those steps failing turns the whole job red. A broken sketch, a
 missing header, an accuracy regression, or a bad CSV schema change all get
@@ -183,7 +183,7 @@ cannot confirm the MPU6050 returns sane values, and cannot confirm the
 on-device sliding-window classifier actually recognizes a real "wave" versus
 a real "punch." A green run means **"this will build,"** not **"this
 works on a bench."** See Part 3 below and
-`build_from_scratch/wiring/WIRING_GUIDE.md` for the steps that only a real
+`wiring/WIRING_GUIDE.md` for the steps that only a real
 board can complete -- this is stated here and in the workflow file's own
 header comment on purpose, not buried.
 
@@ -206,7 +206,7 @@ in CI, but the actual flash-and-run has to happen on your bench, not here.
 ### What you need
 
 - An ESP32 dev board (e.g. an ESP32 DevKitC) and an MPU6050 breakout, wired
-  per `build_from_scratch/wiring/WIRING_GUIDE.md` (VCC->3V3, GND->GND,
+  per `wiring/WIRING_GUIDE.md` (VCC->3V3, GND->GND,
   SCL->GPIO22, SDA->GPIO21).
 - A data-capable USB cable (not a charge-only one -- this trips up more
   people than it should).
@@ -221,7 +221,7 @@ in CI, but the actual flash-and-run has to happen on your bench, not here.
 2. Install the libraries: **Tools > Manage Libraries**, search and install
    `ArduTFLite` and `Adafruit MPU6050` (accept the dependency prompt for
    Adafruit BusIO / Adafruit Unified Sensor).
-3. Open `build_from_scratch/firmware/data_collector/data_collector.ino`
+3. Open `firmware/data_collector/data_collector.ino`
    first -- not the inference sketch. It's the simpler of the two and is
    the right first flash to confirm the wiring works at all.
 4. Plug in the board. **Tools > Board** -> pick your ESP32 board variant
@@ -237,7 +237,7 @@ in CI, but the actual flash-and-run has to happen on your bench, not here.
    most common causes).
 6. Once the data collector sketch works and you trust the wiring, repeat the
    same board/port/upload steps for
-   `build_from_scratch/firmware/tinyml_gesture/tinyml_gesture.ino`.
+   `firmware/tinyml_gesture/tinyml_gesture.ino`.
 
 ### Option B -- arduino-cli (same tool CI uses, if you'd rather stay on the
 command line)
@@ -271,14 +271,14 @@ needs one (CP2102 and CH340 are the two common ones on cheap ESP32 boards).
 ```bash
 # flash the data collector first -- it's the simplest possible wiring check
 arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 \
-  build_from_scratch/firmware/data_collector
+  firmware/data_collector
 
 # watch it stream (Ctrl+C to exit)
 arduino-cli monitor -p /dev/ttyUSB0 -c baudrate=115200
 
 # once wiring is confirmed, flash the real inference sketch
 arduino-cli upload -p /dev/ttyUSB0 --fqbn esp32:esp32:esp32 \
-  build_from_scratch/firmware/tinyml_gesture
+  firmware/tinyml_gesture
 ```
 
 Replace `/dev/ttyUSB0` with whatever `arduino-cli board list` actually
@@ -315,7 +315,7 @@ of what's actually verified:
 3. **Only you can do this, with a real board in your hands:** the wiring and
    continuity check, actually performing gestures and watching what the
    model predicts, and the power-measurement-with-a-multimeter step in
-   `build_from_scratch/wiring/WIRING_GUIDE.md`.
+   `wiring/WIRING_GUIDE.md`.
 
 **This guide, and the CI workflow above, do not change that split.** CI
 proves the code compiles; this section explains how to flash it; neither one

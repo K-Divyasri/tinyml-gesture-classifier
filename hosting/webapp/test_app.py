@@ -49,7 +49,7 @@ def test_summary_tab_reports_800_recordings_across_4_classes():
     at.run()
     assert not at.exception
     metrics = {m.label: m.value for m in at.metric}
-    # build_from_scratch/data/imu_gesture_log.csv: 800 recordings, 4 classes,
+    # data/imu_gesture_log.csv: 800 recordings, 4 classes,
     # 200 per class -- the real, committed numbers from CANON, not assumed.
     assert metrics.get("Total recordings") == "800"
     assert metrics.get("Classes present") == "4"
